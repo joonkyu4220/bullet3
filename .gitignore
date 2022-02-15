@@ -50,3 +50,5 @@ examples/pybullet/gym/pybullet_envs/deep_mimic/output/walk_h36m/
 examples/pybullet/gym/pybullet_envs/deep_mimic/output/walk_new/bad/
 
 examples/pybullet/gym/pybullet_envs/deep_mimic/output/walk_new/good/
+
+examples/pybullet/gym/pybullet_envs/deep_mimic/output/

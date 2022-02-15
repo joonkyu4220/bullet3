@@ -23,13 +23,11 @@ def run():
   done = False
   while not (done):
     update_world(world, update_timestep)
-
   return
 
 
 def shutdown():
   global world
-
   Logger.print2('Shutting down...')
   world.shutdown()
   return

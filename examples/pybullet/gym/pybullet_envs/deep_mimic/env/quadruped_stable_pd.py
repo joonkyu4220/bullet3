@@ -200,14 +200,14 @@ class QuadrupedStablePD(object):
     return count
 
   def getCycleTime(self):
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = keyFrameDuration * (self._mocap_data.NumFrames() - 1)
     return cycleTime
 
   def setSimTime(self, t):
     self._simTime = t
     #print("SetTimeTime time =",t)
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = self.getCycleTime()
     #print("self._motion_data.NumFrames()=",self._mocap_data.NumFrames())
     self._cycleCount = self.calcCycleCount(t, cycleTime)
@@ -448,7 +448,7 @@ class QuadrupedStablePD(object):
     #print("startIndex=",startIndex)
 
   def getPhase(self):
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = keyFrameDuration * (self._mocap_data.NumFrames() - 1)
     phase = self._simTime / cycleTime
     phase = math.fmod(phase, 1.0)

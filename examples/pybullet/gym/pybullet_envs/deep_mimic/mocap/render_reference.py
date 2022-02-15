@@ -105,7 +105,7 @@ humanoid = Humanoid(bc, motion, [0, 0, 0])  #这是初始位置的坐标
 print(p.getBasePositionAndOrientation(humanoid._humanoid))
 
 simTime = 0
-keyFrameDuration = motion.KeyFrameDuraction()
+keyFrameDuration = motion.KeyFrameDuration()
 print("keyFrameDuration=", keyFrameDuration)
 for utNum in range(motion.NumFrames()):
   bc.stepSimulation()

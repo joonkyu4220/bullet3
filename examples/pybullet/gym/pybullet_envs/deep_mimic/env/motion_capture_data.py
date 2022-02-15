@@ -17,11 +17,11 @@ class MotionCaptureData(object):
   def NumFrames(self):
     return len(self._motion_data['Frames'])
 
-  def KeyFrameDuraction(self):
+  def KeyFrameDuration(self):
     return self._motion_data['Frames'][0][0]
 
   def getCycleTime(self):
-    keyFrameDuration = self.KeyFrameDuraction()
+    keyFrameDuration = self.KeyFrameDuration()
     cycleTime = keyFrameDuration * (self.NumFrames() - 1)
     return cycleTime
 

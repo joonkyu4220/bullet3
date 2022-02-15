@@ -126,7 +126,7 @@ motionPath = pybullet_data.getDataPath() + "/data/motions/laikago_walk.txt"
 
 mocapData.Load(motionPath)
 print("mocapData.NumFrames=", mocapData.NumFrames())
-print("mocapData.KeyFrameDuraction=", mocapData.KeyFrameDuraction())
+print("mocapData.KeyFrameDuration=", mocapData.KeyFrameDuration())
 print("mocapData.getCycleTime=", mocapData.getCycleTime())
 print("mocapData.computeCycleOffset=", mocapData.computeCycleOffset())
 
@@ -137,7 +137,7 @@ t = 0
 
 while t < 10. * cycleTime:
   #get interpolated joint
-  keyFrameDuration = mocapData.KeyFrameDuraction()
+  keyFrameDuration = mocapData.KeyFrameDuration()
   cycleTime = mocapData.getCycleTime()
   cycleCount = mocapData.calcCycleCount(t, cycleTime)
 

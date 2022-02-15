@@ -10,11 +10,13 @@ rightKnee = 4
 rightAnkle = 5
 rightShoulder = 6
 rightElbow = 7
+rightWrist = 8
 leftHip = 9
 leftKnee = 10
 leftAnkle = 11
 leftShoulder = 12
 leftElbow = 13
+leftWrist = 14
 jointFrictionForce = 0
 
 
@@ -22,6 +24,13 @@ class HumanoidStablePD(object):
 
   def __init__( self, pybullet_client, mocap_data, timeStep, 
                 useFixedBase=True, arg_parser=None, useComReward=False):
+    
+    # REPRESENTATION_MODE_CHECKPOINT
+    self.state_represenation_mode = "QUATERNION"
+    self.action_representation_mode = "ANGLE_AXIS"
+    self.state_represenation_mode = "6D"
+    self.action_representation_mode = "6D"
+
     self._pybullet_client = pybullet_client
     self._mocap_data = mocap_data
     self._arg_parser = arg_parser
@@ -87,13 +96,42 @@ class HumanoidStablePD(object):
     self._stablePD = pd_controller_stable.PDControllerStableMultiDof(self._pybullet_client)
     self._timeStep = timeStep
     self._kpOrg = [
-        0, 0, 0, 0, 0, 0, 0, 1000, 1000, 1000, 1000, 100, 100, 100, 100, 500, 500, 500, 500, 500,
-        400, 400, 400, 400, 400, 400, 400, 400, 300, 500, 500, 500, 500, 500, 400, 400, 400, 400,
-        400, 400, 400, 400, 300
+        0, 0, 0,
+        0, 0, 0, 0,
+
+        1000, 1000, 1000, 1000,
+        100, 100, 100, 100,
+
+        500, 500, 500, 500,
+        500,
+        400, 400, 400, 400,
+        400, 400, 400, 400,
+        300,
+
+        500, 500, 500, 500,
+        500,
+        400, 400, 400, 400,
+        400, 400, 400, 400,
+        300
     ]
     self._kdOrg = [
-        0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 10, 10, 10, 10, 50, 50, 50, 50, 50, 40, 40, 40,
-        40, 40, 40, 40, 40, 30, 50, 50, 50, 50, 50, 40, 40, 40, 40, 40, 40, 40, 40, 30
+        0, 0, 0,
+        0, 0, 0, 0,
+
+        100, 100, 100, 100,
+        10, 10, 10, 10,
+
+        50, 50, 50, 50,
+        50,
+        40, 40, 40, 40,
+        40, 40, 40, 40,
+        30,
+
+        50, 50, 50, 50,
+        50,
+        40, 40, 40, 40,
+        40, 40, 40, 40,
+        30
     ]
 
     self._jointIndicesAll = [
@@ -135,7 +173,10 @@ class HumanoidStablePD(object):
           velocityGain=1,
           force=[jointFrictionForce, jointFrictionForce, 0])
 
-    self._jointDofCounts = [4, 4, 4, 1, 4, 4, 1, 4, 1, 4, 4, 1]
+    self._jointDofCounts = [4, 4, # chest, neck
+                            4, 1, 4, 4, 1, # right
+                            4, 1, 4, 4, 1  # left
+                            ]
 
     #only those body parts/links are allowed to touch the ground, otherwise the episode terminates
     fall_contact_bodies = []
@@ -247,14 +288,14 @@ class HumanoidStablePD(object):
     return count
 
   def getCycleTime(self):
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = keyFrameDuration * (self._mocap_data.NumFrames() - 1)
     return cycleTime
 
   def setSimTime(self, t):
     self._simTime = t
     #print("SetTimeTime time =",t)
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = self.getCycleTime()
     #print("self._motion_data.NumFrames()=",self._mocap_data.NumFrames())
     self._cycleCount = self.calcCycleCount(t, cycleTime)
@@ -339,7 +380,7 @@ class HumanoidStablePD(object):
         ]
       if self._jointDofCounts[index] == 1:
         force = [scaling * maxForces[dofIndex]]
-        targetPosition = [desiredPositions[dofIndex+0]]
+        targetPosition = [desiredPositions[dofIndex + 0]]
         targetVelocity = [0]
       forces.append(force)
       targetPositions.append(targetPosition)
@@ -438,6 +479,8 @@ class HumanoidStablePD(object):
     leftAnkle = 11
     leftShoulder = 12
     leftElbow = 13
+
+    # position gain
     kp = 0.2
 
     forceScale = 1
@@ -570,7 +613,7 @@ class HumanoidStablePD(object):
     #print("startIndex=",startIndex)
 
   def getPhase(self):
-    keyFrameDuration = self._mocap_data.KeyFrameDuraction()
+    keyFrameDuration = self._mocap_data.KeyFrameDuration()
     cycleTime = keyFrameDuration * (self._mocap_data.NumFrames() - 1)
     phase = self._simTime / cycleTime
     phase = math.fmod(phase, 1.0)
@@ -585,20 +628,22 @@ class HumanoidStablePD(object):
     rotVec = self._pybullet_client.rotateVector(rootOrn, refDir)
     heading = math.atan2(-rotVec[2], rotVec[0])
     heading2 = eul[1]
-    #print("heading=",heading)
+    # print("heading=",heading)
     headingOrn = self._pybullet_client.getQuaternionFromAxisAngle([0, 1, 0], -heading)
     return headingOrn
 
   def buildOriginTrans(self):
     rootPos, rootOrn = self._pybullet_client.getBasePositionAndOrientation(self._sim_model)
 
-    #print("rootPos=",rootPos, " rootOrn=",rootOrn)
+    # print("rootPos=",rootPos)
+    # print("rootOrn=",rootOrn)
     invRootPos = [-rootPos[0], 0, -rootPos[2]]
     #invOrigTransPos, invOrigTransOrn = self._pybullet_client.invertTransform(rootPos,rootOrn)
     headingOrn = self.buildHeadingTrans(rootOrn)
-    #print("headingOrn=",headingOrn)
+    # print("headingOrn=",headingOrn)
     headingMat = self._pybullet_client.getMatrixFromQuaternion(headingOrn)
-    #print("headingMat=",headingMat)
+
+    # print("headingMat=",headingMat)
     #dummy, rootOrnWithoutHeading = self._pybullet_client.multiplyTransforms([0,0,0],headingOrn, [0,0,0], rootOrn)
     #dummy, invOrigTransOrn = self._pybullet_client.multiplyTransforms([0,0,0],rootOrnWithoutHeading, invOrigTransPos, invOrigTransOrn)
 
@@ -606,36 +651,36 @@ class HumanoidStablePD(object):
                                                                                 headingOrn,
                                                                                 invRootPos,
                                                                                 [0, 0, 0, 1])
-    #print("invOrigTransPos=",invOrigTransPos)
-    #print("invOrigTransOrn=",invOrigTransOrn)
+    # print("invOrigTransPos=",invOrigTransPos)
+    # print("invOrigTransOrn=",invOrigTransOrn)
     invOrigTransMat = self._pybullet_client.getMatrixFromQuaternion(invOrigTransOrn)
-    #print("invOrigTransMat =",invOrigTransMat )
+    # print("invOrigTransMat =",invOrigTransMat )
     return invOrigTransPos, invOrigTransOrn
 
   def getState(self):
 
     stateVector = []
     phase = self.getPhase()
-    #print("phase=",phase)
+    # print("phase=",phase)
     stateVector.append(phase)
 
-    rootTransPos, rootTransOrn = self.buildOriginTrans()
-    basePos, baseOrn = self._pybullet_client.getBasePositionAndOrientation(self._sim_model)
+    rootTransPos, rootTransOrn = self.buildOriginTrans() # transformation: rootPos -> [0, height, 0], forward -> [1, 0, 0]
+    basePos, baseOrn = self._pybullet_client.getBasePositionAndOrientation(self._sim_model) # transformation: [0, 0, 0] -> rootPos, [0, 0, 0, 1] -> rootOrn
 
     rootPosRel, dummy = self._pybullet_client.multiplyTransforms(rootTransPos, rootTransOrn,
-                                                                 basePos, [0, 0, 0, 1])
-    #print("!!!rootPosRel =",rootPosRel )
-    #print("rootTransPos=",rootTransPos)
-    #print("basePos=",basePos)
+                                                                 basePos, [0, 0, 0, 1]) # transformation: [0, 0, 0] -> rootPos -> [0, height, 0], forward -> [1, 0, 0]
+    # print("!!!rootPosRel =",rootPosRel )
+    # print("rootTransPos=",rootTransPos)
+    # print("basePos=",basePos)
     localPos, localOrn = self._pybullet_client.multiplyTransforms(rootTransPos, rootTransOrn,
-                                                                  basePos, baseOrn)
+                                                                  basePos, baseOrn) # transformation: [0, 0, 0] -> rootPos -> [0, height, 0], [0, 0, 0, 1] -> rootOrn -> towards[1, 0, 0]
 
     localPos = [
         localPos[0] - rootPosRel[0], localPos[1] - rootPosRel[1], localPos[2] - rootPosRel[2]
-    ]
-    #print("localPos=",localPos)
+    ] # always [0, 0, 0]
+    # print("localPos=",localPos)
 
-    stateVector.append(rootPosRel[1])
+    stateVector.append(rootPosRel[1]) # root height
 
     #self.pb2dmJoints=[0,1,2,9,10,11,3,4,5,12,13,14,6,7,8]
     self.pb2dmJoints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
@@ -654,13 +699,13 @@ class HumanoidStablePD(object):
       linkPos = ls[0]
       linkOrn = ls[1]
       linkPosLocal, linkOrnLocal = self._pybullet_client.multiplyTransforms(
-          rootTransPos, rootTransOrn, linkPos, linkOrn)
+          rootTransPos, rootTransOrn, linkPos, linkOrn) # local position and orientation, origin at PROJECTED root
       if (linkOrnLocal[3] < 0):
         linkOrnLocal = [-linkOrnLocal[0], -linkOrnLocal[1], -linkOrnLocal[2], -linkOrnLocal[3]]
       linkPosLocal = [
           linkPosLocal[0] - rootPosRel[0], linkPosLocal[1] - rootPosRel[1],
           linkPosLocal[2] - rootPosRel[2]
-      ]
+      ] # local position, origin at root (NOT PROJECTED)
       for l in linkPosLocal:
         stateVector.append(l)
       #re-order the quaternion, DeepMimic uses w,x,y,z
@@ -670,25 +715,53 @@ class HumanoidStablePD(object):
         linkOrnLocal[1] *= -1
         linkOrnLocal[2] *= -1
         linkOrnLocal[3] *= -1
+      if self.state_represenation_mode == "QUATERNION":
+        stateVector.append(linkOrnLocal[3])
+        stateVector.append(linkOrnLocal[0])
+        stateVector.append(linkOrnLocal[1])
+        stateVector.append(linkOrnLocal[2])
+      elif self.state_represenation_mode == "6D":
+        linkOrnLocal = self._pybullet_client.getMatrixFromQuaternion(linkOrnLocal)
+        stateVector.append(linkOrnLocal[0])
+        stateVector.append(linkOrnLocal[1])
+        stateVector.append(linkOrnLocal[2])
+        stateVector.append(linkOrnLocal[3])
+        stateVector.append(linkOrnLocal[4])
+        stateVector.append(linkOrnLocal[5])
 
-      stateVector.append(linkOrnLocal[3])
-      stateVector.append(linkOrnLocal[0])
-      stateVector.append(linkOrnLocal[1])
-      stateVector.append(linkOrnLocal[2])
-
+    # print(type(self._pybullet_client.getMatrixFromQuaternion([0, 0, 0, 1])))
+    # print(self._pybullet_client.getMatrixFromQuaternion([0, 0, 0.7071, 0.7071]))
+    # print(type(self._pybullet_client.getQuaternionFromAxisAngle([1, 0, 0], 0)))
+    # print(self._pybullet_client.getQuaternionFromAxisAngle([1, 0, 0], 0))
+    # print(type(self._pybullet_client.getEulerFromQuaternion([0, 0, 0, 1])))
+    # print(self._pybullet_client.getEulerFromQuaternion([0, 0, 0, 1]))
+    # print(type(self._pybullet_client.getQuaternionFromEuler([0, 0, 0])))
+    # print(self._pybullet_client.getQuaternionFromEuler([0, 0, 0]))
+    
        
     for pbJoint in range(self._pybullet_client.getNumJoints(self._sim_model)):
       j = self.pb2dmJoints[pbJoint]
       #ls = self._pybullet_client.getLinkState(self._sim_model, j, computeLinkVelocity=True)
       ls = linkStatesSim[pbJoint]
+
+      # print(pbJoint)
+      # print("!!!!!!!!!!!!!!!!!!")
+      # print(ls[0]) # linkWorldPosition
+      # print(ls[1]) # linkWorldOrientation
+      # print(ls[2]) # localInertialFramePosition
+      # print(ls[3]) # localInertialFrameOrientation
+      # print(ls[4]) # worldLinkFramePosition
+      # print(ls[5]) # worldLinkFrameOrientation
+      # print(ls[6]) # worldLinkLinearVelocity
+      # print(ls[7]) # worldLinkAngularVelocity
       
       linkLinVel = ls[6]
       linkAngVel = ls[7]
       linkLinVelLocal, unused = self._pybullet_client.multiplyTransforms([0, 0, 0], rootTransOrn,
-                                                                         linkLinVel, [0, 0, 0, 1])
+                                                                         linkLinVel, [0, 0, 0, 1]) # because translation transformation doesn't affect linear velocity
       #linkLinVelLocal=[linkLinVelLocal[0]-rootPosRel[0],linkLinVelLocal[1]-rootPosRel[1],linkLinVelLocal[2]-rootPosRel[2]]
       linkAngVelLocal, unused = self._pybullet_client.multiplyTransforms([0, 0, 0], rootTransOrn,
-                                                                         linkAngVel, [0, 0, 0, 1])
+                                                                         linkAngVel, [0, 0, 0, 1]) # neither the angular velocity
 
       for l in linkLinVelLocal:
         stateVector.append(l)

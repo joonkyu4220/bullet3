@@ -24,6 +24,15 @@ class PyBulletDeepMimicEnv(Env):
                time_step=1./240,
                init_strategy=InitializationStrategy.RANDOM):
     super().__init__(arg_parser, enable_draw)
+    
+    # REPRESENTATION_MODE_CHECKPOINT
+    self.state_representation_mode = "QUATERNION"
+    self.action_representation_mode = "ANGLE_AXIS"
+    self.state_representation_mode = "6D"
+    self.action_representation_mode = "6D"
+    print("State represenation mode: {:s}".format(self.state_representation_mode))
+    print("Action represenation mode: {:s}".format(self.action_representation_mode))
+
     self._num_agents = 1
     self._pybullet_client = pybullet_client
     self._isInitialized = False
@@ -133,7 +142,11 @@ class PyBulletDeepMimicEnv(Env):
     #                     state_size += GetStateVelSize(); #(3+3)*numBodyParts=90
     #state_size += GetStatePhaseSize();#1
     #197
-    return 197
+    if self.state_representation_mode == "QUATERNION":
+      return 197
+    elif self.state_representation_mode == "6D":
+      return 227 # 197 + numBodyPart * 2
+    # return 197
 
   def build_state_norm_groups(self, agent_id):
     #if (mEnablePhaseInput)
@@ -162,7 +175,10 @@ class PyBulletDeepMimicEnv(Env):
     return 0
 
   def get_action_size(self, agent_id):
-    ctrl_size = 43  #numDof
+    if self.action_representation_mode == "6D":
+      ctrl_size = 59 #numDof
+    elif self.action_representation_mode == "ANGLE_AXIS":
+      ctrl_size = 43 #numDof
     root_size = 7
     return ctrl_size - root_size
 
@@ -177,59 +193,176 @@ class PyBulletDeepMimicEnv(Env):
 
   def build_action_offset(self, agent_id):
     out_offset = [0] * self.get_action_size(agent_id)
-    out_offset = [
-        0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, 0.0000000000, 0.0000000000,
-        0.0000000000, -0.200000000, 0.0000000000, 0.0000000000, 0.00000000, -0.2000000, 1.57000000,
-        0.00000000, 0.00000000, 0.00000000, -0.2000000, 0.00000000, 0.00000000, 0.00000000,
-        -0.2000000, -1.5700000, 0.00000000, 0.00000000, 0.00000000, -0.2000000, 1.57000000,
-        0.00000000, 0.00000000, 0.00000000, -0.2000000, 0.00000000, 0.00000000, 0.00000000,
-        -0.2000000, -1.5700000
-    ]
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    # intrigues the default axis to be -z axis? to bend forward?
+    # this is strange. need some investigation.
+    if self.action_representation_mode == "ANGLE_AXIS":
+      out_offset = [
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # chest 0 ~ 3
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # neck 4 ~ 7
+
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # rightHip 8 ~ 11
+          1.57000000, # rightKnee 12
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # rightAnkle 13 ~ 16
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # rightShoulder 17 ~ 20
+          -1.5700000, # rightElbow 21
+
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # leftHip 22 ~ 25
+          1.5700000000, # leftKnee 26
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # leftAnkle 27 ~ 30
+          0.0000000000, 0.0000000000, 0.0000000000, -0.200000000, # leftShoulder 31 ~ 34
+          -1.570000000 # leftElbow 35
+      ]
+    elif self.action_representation_mode == "6D":
+      out_offset = [
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # chest
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # neck
+          
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # rightHip
+          1.57000000, # rightKnee
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # rightAnkle
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # rightShoulder
+          -1.5700000, # rightElbow
+          
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, #leftHip
+          1.5700000000, # leftKnee
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # leftAnkle
+          0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, 0.0000000000, # leftShoulder
+          -1.570000000 # leftAnkle
+      ]
     #see cCtCtrlUtil::BuildOffsetScalePDPrismatic and
     #see cCtCtrlUtil::BuildOffsetScalePDSpherical
     return np.array(out_offset)
 
   def build_action_scale(self, agent_id):
     out_scale = [1] * self.get_action_size(agent_id)
+    
     #see cCtCtrlUtil::BuildOffsetScalePDPrismatic and
     #see cCtCtrlUtil::BuildOffsetScalePDSpherical
-    out_scale = [
-        0.20833333333333, 1.00000000000000, 1.00000000000000, 1.00000000000000, 0.25000000000000,
-        1.00000000000000, 1.00000000000000, 1.00000000000000, 0.12077294685990, 1.00000000000000,
-        1.000000000000, 1.000000000000, 0.159235668789, 0.159235668789, 1.000000000000,
-        1.000000000000, 1.000000000000, 0.079617834394, 1.000000000000, 1.000000000000,
-        1.000000000000, 0.159235668789, 0.120772946859, 1.000000000000, 1.000000000000,
-        1.000000000000, 0.159235668789, 0.159235668789, 1.000000000000, 1.000000000000,
-        1.000000000000, 0.107758620689, 1.000000000000, 1.000000000000, 1.000000000000,
-        0.159235668789
-    ]
+
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    if self.action_representation_mode == "ANGLE_AXIS":
+      out_scale = [
+          0.20833333333333, 1.00000000000000, 1.00000000000000, 1.00000000000000, # chest
+          0.25000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # neck
+
+          0.12077294685990, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightHip
+          0.15923566878900, # rightKnee
+          0.15923566878900, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightAnkle
+          0.07961783439400, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightShoulder
+          0.15923566878900, # rightElbow
+
+          0.12077294685900, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftHip
+          0.15923566878900, # leftKnee
+          0.15923566878900, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftAnkle
+          0.10775862068900, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftShoulder
+          0.15923566878900 # leftElbow
+      ]
+    elif self.action_representation_mode == "6D":
+      out_scale = [
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # chest
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # neck
+
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightHip
+          0.15923566878900, # rightKnee
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightAnkle
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # rightShoulder
+          0.15923566878900, # rightElbow
+          
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftHip
+          0.15923566878900, # leftKnee
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftAnkle
+          1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, 1.00000000000000, # leftShoulder
+          0.15923566878900 # leftElbow
+      ]
     return np.array(out_scale)
 
   def build_action_bound_min(self, agent_id):
     #see cCtCtrlUtil::BuildBoundsPDSpherical
-    out_scale = [-1] * self.get_action_size(agent_id)
-    out_scale = [
-        -4.79999999999, -1.00000000000, -1.00000000000, -1.00000000000, -4.00000000000,
-        -1.00000000000, -1.00000000000, -1.00000000000, -7.77999999999, -1.00000000000,
-        -1.000000000, -1.000000000, -7.850000000, -6.280000000, -1.000000000, -1.000000000,
-        -1.000000000, -12.56000000, -1.000000000, -1.000000000, -1.000000000, -4.710000000,
-        -7.779999999, -1.000000000, -1.000000000, -1.000000000, -7.850000000, -6.280000000,
-        -1.000000000, -1.000000000, -1.000000000, -8.460000000, -1.000000000, -1.000000000,
-        -1.000000000, -4.710000000
-    ]
+    out_min = [-1] * self.get_action_size(agent_id)
 
-    return out_scale
+    # REPRESENTATION_MODE_CHECKPOINT
+    if self.action_representation_mode == "ANGLE_AXIS":
+      out_min = [
+          -4.79999999999, -1.00000000000, -1.00000000000, -1.00000000000, # chest
+          -4.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # neck
+
+          -7.77999999999, -1.00000000000, -1.00000000000, -1.00000000000, # rightHip
+          -7.85000000000, # rightKnee
+          -6.28000000000, -1.00000000000, -1.00000000000, -1.00000000000, # rightAnkle
+          -12.5600000000, -1.00000000000, -1.00000000000, -1.00000000000, # rightShoulder
+          -4.71000000000, # rightElbow
+
+          -7.77999999900, -1.00000000000, -1.00000000000, -1.00000000000, # leftHip
+          -7.85000000000, # leftKnee
+          -6.28000000000, -1.00000000000, -1.00000000000, -1.00000000000, # leftAnkle
+          -8.46000000000, -1.00000000000, -1.00000000000, -1.00000000000, # leftShoulder. why is it not symmetric to rightShoulder?
+          -4.71000000000 # leftElbow
+      ]
+
+    elif self.action_representation_mode == "6D":
+      out_min = [
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # chest
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # neck
+
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # rightHip
+          -7.85000000000, # rightKnee
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # rightAnkle
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # rightShoulder
+          -4.71000000000, # rightElbow
+
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # leftHip
+          -7.85000000000, # leftKnee
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # leftAnkle
+          -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, -1.00000000000, # leftShoulder.
+          -4.71000000000 # leftElbow
+      ]
+
+    return out_min
 
   def build_action_bound_max(self, agent_id):
-    out_scale = [1] * self.get_action_size(agent_id)
-    out_scale = [
-        4.799999999, 1.000000000, 1.000000000, 1.000000000, 4.000000000, 1.000000000, 1.000000000,
-        1.000000000, 8.779999999, 1.000000000, 1.0000000, 1.0000000, 4.7100000, 6.2800000,
-        1.0000000, 1.0000000, 1.0000000, 12.560000, 1.0000000, 1.0000000, 1.0000000, 7.8500000,
-        8.7799999, 1.0000000, 1.0000000, 1.0000000, 4.7100000, 6.2800000, 1.0000000, 1.0000000,
-        1.0000000, 10.100000, 1.0000000, 1.0000000, 1.0000000, 7.8500000
-    ]
-    return out_scale
+    out_max = [1] * self.get_action_size(agent_id)
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    if self.action_representation_mode == "ANGLE_AXIS":
+      out_max = [
+          4.799999999, 1.000000000, 1.000000000, 1.000000000, # chest
+          4.000000000, 1.000000000, 1.000000000, 1.000000000, # neck
+
+          8.779999999, 1.000000000, 1.000000000, 1.000000000, # rightHip
+          4.710000000, # rightKnee
+          6.280000000, 1.000000000, 1.000000000, 1.000000000, # rightAnkle
+          12.56000000, 1.000000000, 1.000000000, 1.000000000, # rightShoulder
+          7.850000000, # rightElbow
+
+          8.779999999, 1.000000000, 1.000000000, 1.000000000, # leftHip
+          4.710000000, # leftKnee
+          6.280000000, 1.000000000, 1.000000000, 1.000000000, # leftAnkle
+          10.10000000, 1.000000000, 1.000000000, 1.000000000, # leftShoulder. why is it not symmetric to rightShoulder?
+          7.850000000 # leftElbow
+      ]
+    elif self.action_representation_mode == "6D":
+      out_max = [
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # chest
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # neck
+
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # rightHip
+          4.710000000, # rightKnee
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # rightAnkle
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # rightShoulder
+          7.850000000, # rightElbow
+
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # leftHip
+          4.710000000, # leftKnee
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # leftAnkle
+          1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, 1.000000000, # leftShoulder.
+          7.850000000 # leftElbow
+      ]
+
+
+    return out_max
 
   def set_mode(self, mode):
     self._mode = mode
@@ -254,6 +387,7 @@ class PyBulletDeepMimicEnv(Env):
     return reward
 
   def set_action(self, agent_id, action):
+
     #print("action=",)
     #for a in action:
     #  print(a)
@@ -294,10 +428,25 @@ class PyBulletDeepMimicEnv(Env):
         #pos,orn=self._pybullet_client.getBasePositionAndOrientation(self._humanoid._sim_model)
         #self._pybullet_client.resetBasePositionAndOrientation(self._humanoid._kin_model, [pos[0]+3,pos[1],pos[2]],orn)
         #print("desiredPositions=",self.desiredPose)
+        #len(maxForces) = 43
         maxForces = [
-            0, 0, 0, 0, 0, 0, 0, 200, 200, 200, 200, 50, 50, 50, 50, 200, 200, 200, 200, 150, 90,
-            90, 90, 90, 100, 100, 100, 100, 60, 200, 200, 200, 200, 150, 90, 90, 90, 90, 100, 100,
-            100, 100, 60
+            # every 4th elements are dummies. never used.
+            0, 0, 0, # basePos
+            0, 0, 0, 0, # baseOrn
+            200, 200, 200, 200, # chest
+            50, 50, 50, 50, # neck
+
+            200, 200, 200, 200, # rightHip
+            150, # rightKnee
+            90, 90, 90, 90, # rightAnkle
+            100, 100, 100, 100, # rightShoulder
+            60, # rightWrist
+
+            200, 200, 200, 200, # leftHip
+            150, # leftKnee
+            90, 90, 90, 90, # leftAnkle
+            100, 100, 100, 100, # leftShoulder
+            60 # leftWrist
         ]
 
         if self._useStablePD:

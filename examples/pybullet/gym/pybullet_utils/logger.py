@@ -1,4 +1,5 @@
 import pybullet_utils.mpi_util as MPIUtil
+
 """
 
 Some simple logging functionality, inspired by rllab's logging.
@@ -15,7 +16,6 @@ A['EpRewMean']
 """
 
 import os.path as osp, shutil, time, atexit, os, subprocess
-
 
 class Logger:
 

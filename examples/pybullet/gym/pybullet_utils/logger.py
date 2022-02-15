@@ -19,11 +19,6 @@ import os.path as osp, shutil, time, atexit, os, subprocess
 
 class Logger:
 
-  def print2(str):
-    if (MPIUtil.is_root_proc()):
-      print(str)
-    return
-
   def __init__(self):
     self.output_file = None
     self.first_row = True
@@ -32,12 +27,18 @@ class Logger:
     self._dump_str_template = ""
     return
 
+  def print2(str):
+    if (MPIUtil.is_root_proc()):
+      print(str)
+    return
+
   def reset(self):
     self.first_row = True
     self.log_headers = []
     self.log_current_row = {}
     if self.output_file is not None:
-      self.output_file = open(output_path, 'w')
+      # self.output_file = open(output_path, 'w')
+      self.output_file = open(self.output_path, 'w')
     return
 
   def configure_output_file(self, filename=None):
@@ -48,18 +49,18 @@ class Logger:
     self.log_headers = []
     self.log_current_row = {}
 
-    output_path = filename or "output/log_%i.txt" % int(time.time())
+    self.output_path = filename or "output/log_%i.txt" % int(time.time())
 
-    out_dir = os.path.dirname(output_path)
+    out_dir = os.path.dirname(self.output_path)
     if not os.path.exists(out_dir) and MPIUtil.is_root_proc():
       os.makedirs(out_dir)
 
     if (MPIUtil.is_root_proc()):
-      self.output_file = open(output_path, 'w')
-      assert osp.exists(output_path)
+      self.output_file = open(self.output_path, 'w')
+      assert osp.exists(self.output_path)
       atexit.register(self.output_file.close)
-
       Logger.print2("Logging data to " + self.output_file.name)
+      
     return
 
   def log_tabular(self, key, val):

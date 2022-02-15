@@ -9,7 +9,6 @@ from pybullet_envs.deep_mimic.learning.rl_agent import RLAgent
 from pybullet_utils.logger import Logger
 from pybullet_envs.deep_mimic.learning.tf_normalizer import TFNormalizer
 
-
 class TFAgent(RLAgent):
   RESOURCE_SCOPE = 'resource'
   SOLVER_SCOPE = 'solvers'
@@ -22,7 +21,24 @@ class TFAgent(RLAgent):
     super().__init__(world, id, json_data)
     self._build_graph(json_data)
     self._init_normalizers()
+
+    self._log_dir = ""
+
     return
+
+  #tbcheckpoint
+  def get_log_dir(self):
+    return self._log_dir
+  def set_log_dir(self, log_dir):
+    self._log_dir = log_dir
+    self.train_reward_holder = tf.placeholder(dtype=tf.float32)
+    self.test_reward_holder = tf.placeholder(dtype=tf.float32)
+    tf.summary.scalar(name = "train_reward", tensor = self.train_reward_holder)
+    tf.summary.scalar(name = "test_reward", tensor = self.test_reward_holder)
+    self.summary_writer = tf.summary.FileWriter(self._log_dir)
+    self.summaries = tf.summary.merge_all()
+    return
+  log_dir = property(get_log_dir, set_log_dir)
 
   def __del__(self):
     self.sess.close()
@@ -56,6 +72,7 @@ class TFAgent(RLAgent):
     return file_path
 
   def _build_graph(self, json_data):
+
     with self.sess.as_default(), self.graph.as_default():
       with tf.variable_scope(self.tf_scope):
         self._build_nets(json_data)
@@ -153,4 +170,8 @@ class TFAgent(RLAgent):
   def _train(self):
     with self.sess.as_default(), self.graph.as_default():
       super()._train()
+    #tbcheckpoint
+    sess = tf.Session()
+    summary = sess.run(self.summaries, feed_dict={self.train_reward_holder : self.avg_train_return, self.test_reward_holder : self.avg_test_return})
+    self.summary_writer.add_summary(summary, global_step=self.iter)
     return

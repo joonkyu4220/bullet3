@@ -1,3 +1,4 @@
+from email.policy import default
 import numpy as np
 import pybullet_envs.deep_mimic.learning.agent_builder as AgentBuilder
 import pybullet_envs.deep_mimic.learning.tf_util as TFUtil
@@ -70,6 +71,9 @@ class RLWorld(object):
     output_path = self.arg_parser.parse_string('output_path')
     int_output_path = self.arg_parser.parse_string('int_output_path')
 
+    # tbcheckpoint
+    log_path = self.arg_parser.parse_string('log_path', default=output_path+"/logs")
+
     for i in range(num_agents):
       curr_file = agent_files[i]
       curr_agent = self._build_agent(i, curr_file)
@@ -77,6 +81,10 @@ class RLWorld(object):
       if curr_agent is not None:
         curr_agent.output_dir = output_path
         curr_agent.int_output_dir = int_output_path
+        
+        # tbcheckpoint
+        curr_agent.log_dir = log_path
+
         Logger.print2(str(curr_agent))
 
         if (len(model_files) > 0):

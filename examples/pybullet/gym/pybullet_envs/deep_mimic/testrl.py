@@ -29,7 +29,7 @@ def update_world(world, time_elapsed):
   global total_reward
   total_reward += reward
   global steps
-  steps+=1
+  steps += 1
   
   #print("reward=",reward)
   #print("steps=",steps)

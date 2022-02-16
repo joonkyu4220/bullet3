@@ -539,6 +539,7 @@ class RLAgent(ABC):
       if (self._valid_train_step()):
         prev_iter = self.iter
         iters = self._get_iters_per_update()
+        #tbcheckpoint
         self.avg_train_return = MPIUtil.reduce_avg(self.train_return)
 
         for i in range(iters):
@@ -569,6 +570,18 @@ class RLAgent(ABC):
           Logger.print2("Agent " + str(self.id))
           self.logger.print_tabular()
           Logger.print2("")
+
+          #tbcheckpoint
+          self.logger.log_tb("Iteration", self.iter)
+          self.logger.log_tb("Wall_Time", wall_time)
+          self.logger.log_tb("Samples", self._total_sample_count)
+          self.logger.log_tb("Train_Return", self.avg_train_return)
+          self.logger.log_tb("Test_Return", self.avg_test_return)
+          self.logger.log_tb("State_Mean", s_mean)
+          self.logger.log_tb("State_Std", s_std)
+          self.logger.log_tb("Goal_Mean", g_mean)
+          self.logger.log_tb("Goal_Std", g_std)
+          self.logger.tb_add_summary(self.iter)
 
           if (self._enable_output() and curr_iter % self.int_output_iters == 0):
             self.logger.dump_tabular()

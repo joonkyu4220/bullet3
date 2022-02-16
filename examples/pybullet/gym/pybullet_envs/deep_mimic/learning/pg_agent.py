@@ -276,7 +276,6 @@ class PGAgent(TFAgent):
     self.logger.log_tabular('Critic_Stepsize', critic_stepsize)
     self.logger.log_tabular('Actor_Loss', actor_loss)
     self.logger.log_tabular('Actor_Stepsize', actor_stepsize)
-
     return
 
   def _update_critic(self):

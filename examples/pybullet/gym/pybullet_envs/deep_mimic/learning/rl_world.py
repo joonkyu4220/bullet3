@@ -71,7 +71,7 @@ class RLWorld(object):
     output_path = self.arg_parser.parse_string('output_path')
     int_output_path = self.arg_parser.parse_string('int_output_path')
 
-    # tbcheckpoint
+    #tbcheckpoint
     log_path = self.arg_parser.parse_string('log_path', default=output_path+"/logs")
 
     for i in range(num_agents):
@@ -82,7 +82,7 @@ class RLWorld(object):
         curr_agent.output_dir = output_path
         curr_agent.int_output_dir = int_output_path
         
-        # tbcheckpoint
+        #tbcheckpoint
         curr_agent.log_dir = log_path
 
         Logger.print2(str(curr_agent))

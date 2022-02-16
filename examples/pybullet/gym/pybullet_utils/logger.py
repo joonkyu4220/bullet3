@@ -1,3 +1,4 @@
+from xmlrpc.client import MAXINT
 import pybullet_utils.mpi_util as MPIUtil
 
 """
@@ -17,6 +18,12 @@ A['EpRewMean']
 
 import os.path as osp, shutil, time, atexit, os, subprocess
 
+#tbchecktpoint
+try:
+  import tensorflow.compat.v1 as tf
+except Exception:
+  import tensorflow as tf
+
 class Logger:
 
   def __init__(self):
@@ -25,7 +32,47 @@ class Logger:
     self.log_headers = []
     self.log_current_row = {}
     self._dump_str_template = ""
+
+    #tbcheckpoint
+    self._tb_dir = ""
+    self.summary_writer = None
     return
+
+  def configure_tensorboard(self, log_dir):
+    self.tb_first_row = True
+    self.summary_graph = tf.Graph()
+    self.summary_sess = tf.Session(graph = self.summary_graph)
+    self.summary_writer = tf.summary.FileWriter(log_dir)
+    self.key2idx = {}
+    self.feed_dict = {}
+    self.placeholders = []
+    self.scalars = []
+    return
+  
+  def log_tb(self, key, val):
+    if (MPIUtil.is_root_proc()):
+      if self.tb_first_row:
+        if key not in self.key2idx:
+          with self.summary_graph.as_default():
+            self.placeholders.append(tf.placeholder(dtype=tf.float32))
+            self.scalars.append(tf.summary.scalar(name=key, tensor=self.placeholders[-1]))
+          self.key2idx[key] = len(self.placeholders) - 1
+      self.feed_dict[self.placeholders[self.key2idx[key]]] = val
+    return
+  
+  def tb_add_summary(self, iter):
+    if (MPIUtil.is_root_proc()):
+      if self.tb_first_row:
+        self.tb_first_row = False
+        with self.summary_graph.as_default():
+          self.summaries = tf.summary.merge_all()
+        # self.summaries = tf.summary.merge_all()
+      summary = self.summary_sess.run(self.summaries, feed_dict=self.feed_dict)
+      self.summary_writer.add_summary(summary, global_step=iter)
+    return
+
+
+
 
   def print2(str):
     if (MPIUtil.is_root_proc()):

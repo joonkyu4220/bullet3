@@ -49,12 +49,12 @@ class Logger:
     self.scalars = []
     return
   
-  def log_tb(self, key, val):
+  def log_tb(self, key, val, dtype=tf.float32):
     if (MPIUtil.is_root_proc()):
       if self.tb_first_row:
         if key not in self.key2idx:
           with self.summary_graph.as_default():
-            self.placeholders.append(tf.placeholder(dtype=tf.float32))
+            self.placeholders.append(tf.placeholder(dtype=dtype))
             self.scalars.append(tf.summary.scalar(name=key, tensor=self.placeholders[-1]))
           self.key2idx[key] = len(self.placeholders) - 1
       self.feed_dict[self.placeholders[self.key2idx[key]]] = val

@@ -83,9 +83,6 @@ class RLAgent(ABC):
     self.test_return = 0.0
     self.avg_test_return = 0.0
 
-    #tbcheckpoint
-    self.avg_train_return = 0.0
-
     self.exp_anneal_samples = 320000
     self.exp_params_beg = ExpParams()
     self.exp_params_end = ExpParams()
@@ -540,7 +537,7 @@ class RLAgent(ABC):
         prev_iter = self.iter
         iters = self._get_iters_per_update()
         #tbcheckpoint
-        self.avg_train_return = MPIUtil.reduce_avg(self.train_return)
+        avg_train_return = MPIUtil.reduce_avg(self.train_return)
 
         for i in range(iters):
           curr_iter = self.iter
@@ -556,7 +553,7 @@ class RLAgent(ABC):
           self.logger.log_tabular("Iteration", self.iter)
           self.logger.log_tabular("Wall_Time", wall_time)
           self.logger.log_tabular("Samples", self._total_sample_count)
-          self.logger.log_tabular("Train_Return", self.avg_train_return)
+          self.logger.log_tabular("Train_Return", avg_train_return)
           self.logger.log_tabular("Test_Return", self.avg_test_return)
           self.logger.log_tabular("State_Mean", s_mean)
           self.logger.log_tabular("State_Std", s_std)
@@ -572,10 +569,10 @@ class RLAgent(ABC):
           Logger.print2("")
 
           #tbcheckpoint
-          self.logger.log_tb("Iteration", self.iter)
+          self.logger.log_tb("Iteration", self.iter * 0.001)
           self.logger.log_tb("Wall_Time", wall_time)
-          self.logger.log_tb("Samples", self._total_sample_count)
-          self.logger.log_tb("Train_Return", self.avg_train_return)
+          self.logger.log_tb("Samples", self._total_sample_count * 0.000001)
+          self.logger.log_tb("Train_Return", avg_train_return)
           self.logger.log_tb("Test_Return", self.avg_test_return)
           self.logger.log_tb("State_Mean", s_mean)
           self.logger.log_tb("State_Std", s_std)

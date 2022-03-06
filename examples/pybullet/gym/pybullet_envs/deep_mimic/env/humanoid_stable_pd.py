@@ -2,6 +2,7 @@ from pybullet_utils import pd_controller_stable
 from pybullet_envs.deep_mimic.env import humanoid_pose_interpolator
 import math
 import numpy as np
+from .math_utils import *
 
 chest = 1
 neck = 2
@@ -26,14 +27,38 @@ class HumanoidStablePD(object):
                 useFixedBase=True, arg_parser=None, useComReward=False):
     
     # REPRESENTATION_MODE_CHECKPOINT
-    self.state_represenation_mode = "QUATERNION"
-    self.action_representation_mode = "ANGLE_AXIS"
-    self.state_represenation_mode = "6D"
-    self.action_representation_mode = "6D"
+    # self.state_representation_mode = "Quaternion"
+    # self.action_representation_mode = "AxisAngle"
+    # self.state_representation_mode = "6D"
+    # self.action_representation_mode = "6D"
+
+    
 
     self._pybullet_client = pybullet_client
     self._mocap_data = mocap_data
     self._arg_parser = arg_parser
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    self.state_representation_mode = self._arg_parser.parse_string('state_repr', default="Quaternion")
+    self.action_representation_mode = self._arg_parser.parse_string('action_repr', default="AxisAngle")
+
+    if self.state_representation_mode == "Quaternion":
+      self.state_dim = 4
+    elif self.state_representation_mode == "Euler":
+      self.state_dim = 3
+    elif self.state_representation_mode == "AxisAngle":
+      self.state_dim = 4
+    elif self.state_representation_mode == "RotVec":
+      self.state_dim = 3
+    elif self.state_representation_mode == "RotMat":
+      self.state_dim = 9
+    elif self.state_representation_mode == "6D":
+      self.state_dim = 6
+
+
+    # DISCONTINUITY_CHECKPOINT
+    self.state_discontinuity_encounter = 0
+
     print("LOADING humanoid!")
     flags=self._pybullet_client.URDF_MAINTAIN_LINK_ORDER+self._pybullet_client.URDF_USE_SELF_COLLISION+self._pybullet_client.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
     self._sim_model = self._pybullet_client.loadURDF(
@@ -87,7 +112,11 @@ class HumanoidStablePD(object):
           self._pybullet_client.ACTIVATION_STATE_DISABLE_WAKEUP)
       self._pybullet_client.changeVisualShape(self._kin_model, j, rgbaColor=[1, 1, 1, alpha])
 
-    self._poseInterpolator = humanoid_pose_interpolator.HumanoidPoseInterpolator()
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    # self._poseInterpolator = humanoid_pose_interpolator.HumanoidPoseInterpolator()
+    self._poseInterpolator = humanoid_pose_interpolator.HumanoidPoseInterpolator(self._arg_parser)
+
 
     for i in range(self._mocap_data.NumFrames() - 1):
       frameData = self._mocap_data._motion_data['Frames'][i]
@@ -700,8 +729,11 @@ class HumanoidStablePD(object):
       linkOrn = ls[1]
       linkPosLocal, linkOrnLocal = self._pybullet_client.multiplyTransforms(
           rootTransPos, rootTransOrn, linkPos, linkOrn) # local position and orientation, origin at PROJECTED root
-      if (linkOrnLocal[3] < 0):
+      
+      
+      if (linkOrnLocal[3] < 0): # ***
         linkOrnLocal = [-linkOrnLocal[0], -linkOrnLocal[1], -linkOrnLocal[2], -linkOrnLocal[3]]
+
       linkPosLocal = [
           linkPosLocal[0] - rootPosRel[0], linkPosLocal[1] - rootPosRel[1],
           linkPosLocal[2] - rootPosRel[2]
@@ -709,25 +741,39 @@ class HumanoidStablePD(object):
       for l in linkPosLocal:
         stateVector.append(l)
       #re-order the quaternion, DeepMimic uses w,x,y,z
+      # stateVector.append(linkOrnLocal[3])
+      # stateVector.append(linkOrnLocal[0])
+      # stateVector.append(linkOrnLocal[1])
+      # stateVector.append(linkOrnLocal[2])
 
+
+      # unnecessary, because of ***
       if (linkOrnLocal[3] < 0):
         linkOrnLocal[0] *= -1
         linkOrnLocal[1] *= -1
         linkOrnLocal[2] *= -1
         linkOrnLocal[3] *= -1
-      if self.state_represenation_mode == "QUATERNION":
-        stateVector.append(linkOrnLocal[3])
-        stateVector.append(linkOrnLocal[0])
-        stateVector.append(linkOrnLocal[1])
-        stateVector.append(linkOrnLocal[2])
-      elif self.state_represenation_mode == "6D":
-        linkOrnLocal = self._pybullet_client.getMatrixFromQuaternion(linkOrnLocal)
-        stateVector.append(linkOrnLocal[0])
-        stateVector.append(linkOrnLocal[1])
-        stateVector.append(linkOrnLocal[2])
-        stateVector.append(linkOrnLocal[3])
-        stateVector.append(linkOrnLocal[4])
-        stateVector.append(linkOrnLocal[5])
+
+      # if self.state_representation_mode == "Quaternion":
+      #   stateVector.append(linkOrnLocal[3])
+      #   stateVector.append(linkOrnLocal[0])
+      #   stateVector.append(linkOrnLocal[1])
+      #   stateVector.append(linkOrnLocal[2])
+      # elif self.state_representation_mode == "6D":
+      #   linkOrnLocal = self._pybullet_client.getMatrixFromQuaternion(linkOrnLocal)
+      #   stateVector.append(linkOrnLocal[0])
+      #   stateVector.append(linkOrnLocal[1])
+      #   stateVector.append(linkOrnLocal[2])
+      #   stateVector.append(linkOrnLocal[3])
+      #   stateVector.append(linkOrnLocal[4])
+      #   stateVector.append(linkOrnLocal[5])
+
+      if abs(linkOrnLocal[3]) < eps:
+        self.state_discontinuity_encounter += 1
+
+      linkOrnLocal = getStateFromQuaternion(linkOrnLocal, self.state_representation_mode)
+      for elem in linkOrnLocal:
+        stateVector.append(elem)
 
     # print(type(self._pybullet_client.getMatrixFromQuaternion([0, 0, 0, 1])))
     # print(self._pybullet_client.getMatrixFromQuaternion([0, 0, 0.7071, 0.7071]))

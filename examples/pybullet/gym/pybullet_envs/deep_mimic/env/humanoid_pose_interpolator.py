@@ -1,18 +1,37 @@
 import numpy as np
 from pybullet_utils import bullet_client
 import math
-
-eps = 0.000001
+from .math_utils import *
 
 class HumanoidPoseInterpolator(object):
 
-  def __init__(self):
+  # REPRESENTATION_MODE_CHECKPOINT
+  # def __init__(self):
+  def __init__(self, arg_parser = None):
     
     # REPRESENTATION_MODE_CHECKPOINT
-    self.state_represenation_mode = "QUATERNION"
-    self.action_representation_mode = "ANGLE_AXIS"
-    self.state_represenation_mode = "6D"
-    self.action_representation_mode = "6D"
+    # self.state_representation_mode = "Quaternion"
+    # self.action_representation_mode = "AxisAngle"
+    # self.state_representation_mode = "6D"
+    # self.action_representation_mode = "6D"
+
+    # REPRESENTATION_MODE_CHECKPOINT
+    self._arg_parser = arg_parser
+    self.state_representation_mode = self._arg_parser.parse_string('state_repr', default="Quaternion")
+    self.action_representation_mode = self._arg_parser.parse_string('action_repr', default="AxisAngle")
+    
+    if self.action_representation_mode == "Quaternion":
+      self.action_dim = 4
+    elif self.action_representation_mode == "Euler":
+      self.action_dim = 3
+    elif self.action_representation_mode == "AxisAngle":
+      self.action_dim = 4
+    elif self.action_representation_mode == "RotVec":
+      self.action_dim = 3
+    elif self.action_representation_mode == "RotMat":
+      self.action_dim = 9
+    elif self.action_representation_mode == "6D":
+      self.action_dim = 6
 
     pass
 
@@ -283,235 +302,146 @@ class HumanoidPoseInterpolator(object):
     self.Reset()  #?? needed?
     index = 0
 
-    if self.action_representation_mode == "6D":
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0] #float
-      axis = angle_axis[1:4] #list
-      self._chestRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    self._chestRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._neckRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._rightHipRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._rightKneeRot = [action[index]]
+    index += 1
+    self._rightAnkleRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._rightShoulderRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._rightElbowRot = [action[index]]
+    index += 1
+    self._leftHipRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._leftKneeRot = [action[index]]
+    index += 1
+    self._leftAnkleRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._leftShoulderRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
+    index += self.action_dim
+    self._leftElbowRot = [action[index]]
+    index += 1
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._neckRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    # if self.action_representation_mode == "6D":
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._chestRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._rightHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._neckRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      angle = action[index]
-      self._rightKneeRot = [angle]
-      index += 1
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._rightHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._rightAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   angle = action[index]
+    #   self._rightKneeRot = [angle]
+    #   index += 1
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._rightShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._rightAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      angle = action[index]
-      self._rightElbowRot = [angle]
-      index += 1
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._rightShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._leftHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   angle = action[index]
+    #   self._rightElbowRot = [angle]
+    #   index += 1
 
-      angle = action[index]
-      self._leftKneeRot = [angle]
-      index += 1
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._leftHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._leftAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   angle = action[index]
+    #   self._leftKneeRot = [angle]
+    #   index += 1
 
-      sixdim = action[index:index + 6]
-      angle_axis = self.ConvertSixDimensionToAngleAxis(sixdim)
-      angle = angle_axis[0]
-      axis = angle_axis[1:4]
-      self._leftShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      index += 6
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._leftAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-      angle = action[index]
-      self._leftElbowRot = [angle]
-      index += 1
+    #   sixdim = action[index:index + 6]
+    #   axis, angle = getAxisAngleFromSixDim(sixdim)
+    #   self._leftShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   index += 6
 
-    elif self.action_representation_mode == "ANGLE_AXIS":    
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._chestRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
-      #print("pose._chestRot=",pose._chestRot)
+    #   angle = action[index]
+    #   self._leftElbowRot = [angle]
+    #   index += 1
+    
+    # elif self.action_representation_mode == "AxisAngle":    
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._chestRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   #print("pose._chestRot=",pose._chestRot)
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._neckRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._neckRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._rightHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._rightHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      index += 1
-      self._rightKneeRot = [angle]
+    #   angle = action[index]
+    #   index += 1
+    #   self._rightKneeRot = [angle]
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._rightAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._rightAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._rightShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._rightShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      index += 1
-      self._rightElbowRot = [angle]
+    #   angle = action[index]
+    #   index += 1
+    #   self._rightElbowRot = [angle]
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._leftHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._leftHipRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      index += 1
-      self._leftKneeRot = [angle]
+    #   angle = action[index]
+    #   index += 1
+    #   self._leftKneeRot = [angle]
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._leftAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._leftAnkleRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      axis = [action[index + 1], action[index + 2], action[index + 3]]
-      index += 4
-      self._leftShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
+    #   angle = action[index]
+    #   axis = [action[index + 1], action[index + 2], action[index + 3]]
+    #   index += 4
+    #   self._leftShoulderRot = pybullet_client.getQuaternionFromAxisAngle(axis, angle)
 
-      angle = action[index]
-      index += 1
-      self._leftElbowRot = [angle]
+    #   angle = action[index]
+    #   index += 1
+    #   self._leftElbowRot = [angle]
       
     pose = self.GetPose()
 
     return pose
-
-  def DotProduct(self, vec1, vec2):
-    assert len(vec1) == len(vec2), "PoseInterpolator DotProduct Dimension Error: Two vectors must have a same dimension"
-    s = 0
-    for i in range(len(vec1)):
-      s += vec1[i] * vec2[i]
-    return s
-
-  def Normalize(self, vec):
-    # can be vector, quaternion, whatever
-    v = []
-    length2 = self.DotProduct(vec, vec)
-    assert length2 > 0, "PoseInterpolator Normalize Error: ZeroVector cannot be normalized"
-    length = math.sqrt(length2)
-    for i in range(len(vec)):
-      v.append(vec[i] / length)
-    return v
-
-  def CrossProduct(self, v1, v2):
-    assert len(v1) == len(v2), "PoseInterpolator CrossProduct Dimension Error: Two vectors must have a same dimension"
-    vec_dim = len(v1)
-    assert vec_dim > 2, "PoseInterpolator CrossProduct Dimension Error: The dimension must be larger than 2"
-    v = []
-    for i in range(vec_dim):
-      v.append(v1[(i + 1) % vec_dim] * v2[(i + 2) % vec_dim] - v1[(i + 2) % vec_dim] * v2[(i + 1) % vec_dim])
-    return v
-  
-  def ScalarVectorProduct(self, s, vec):
-    v = []
-    for i in range(len(vec)):
-      v.append(s * vec[i])
-    return v
-  
-  def VectorSummation(self, v1, v2):
-    assert len(v1) == len(v2), "PoseInterpolator VectorSummation Dimension Error: Two vectors must have a same dimension"
-    v = []
-    for i in range(len(v1)):
-      v.append(v1[i] + v2[i])
-    return v
-
-  def VectorSubtraction(self, vec1, vec2):
-    assert len(vec1) == len(vec2), "PoseInterpolator VectorSubtraction Dimension Error: Two vectors must have a same dimension"
-    v = []
-    for i in range(len(vec1)):
-      v.append(vec1[i] - vec2[i])
-    return v
-
-  def ConvertSixDimensionToMatrix(self, six_dimension):
-    assert len(six_dimension) == 6, "PoseInterpolator ConvertSixDimensionToMatrix Dimension Error: Dimension not 6"
-    r1 = six_dimension[:3]
-    r1 = self.Normalize(r1)
-    r2 = six_dimension[3:]
-    r2_r1 = self.DotProduct(r1, r2)
-    r2 = self.VectorSubtraction(r2, self.ScalarVectorProduct(r2_r1, r1))
-    r2 = self.Normalize(r2)
-    r3 = self.CrossProduct(r1, r2)
-    return r1 + r2 + r3
-
-  def Determinant(self, m):
-    assert len(m) == 9, "PoseInterpolator Determinant Dimension Error: Dimension not 9"
-    return self.DotProduct(m[:3], self.CrossProduct(m[3:6], m[6:9]))
-
-  def ConvertMatrixToAngleAxis(self, m):
-    assert len(m) == 9, "PoseInterpolator ConvertMatrixToAngleAxis Dimension Error: Dimension not 9"
-    assert abs(self.Determinant(m) - 1.0) < eps, "PoseInterpolator ConvertMatrixToAngleAxis Determinant Error: Determinant not 1"
-    angle = math.acos(min(max((m[0] + m[4] + m[8] - 1.0) / 2.0, -1.0), 1.0))
-    
-    if abs(angle) < eps:
-      return [0.0, 0.0, 1.0, 0.0]
-    # if abs(abs(angle) - 180.0) < eps:
-    axis_denom = math.sqrt((m[7] - m[5]) * (m[7] - m[5]) + (m[2] - m[6]) * (m[2] - m[6]) + (m[3] - m[1]) * (m[3] - m[1]))
-    if abs(axis_denom) < eps:
-      x = math.sqrt((m[0] + 1.0) / 2.0)
-      if x < eps:
-        x = 0.0
-        y = math.sqrt((m[4] + 1.0) / 2.0)
-        if y < eps:
-          y = 0.0
-          z = 1.0
-        else:
-          z = (m[5] + m[7]) / y / 4.0
-      else:
-        y = (m[1] + m[3]) / x / 4.0
-        z = (m[2] + m[6]) / x / 4.0
-    else:
-      x = (m[7] - m[5]) / axis_denom
-      y = (m[2] - m[6]) / axis_denom
-      z = (m[3] - m[1]) / axis_denom
-
-    axis = self.Normalize([x, y, z])
-    return np.array([angle] + axis, dtype=np.float32)
-
-  def ConvertSixDimensionToAngleAxis(self, six_dimension):
-    return self.ConvertMatrixToAngleAxis(self.ConvertSixDimensionToMatrix(six_dimension))
-
-
-    
-

@@ -96,9 +96,20 @@ def getQuaternionFromFromAxisAngle(AxisAngle):
     return np.array([x, y, z, w], dtype=np.float32)
 
 
+
+
+def NormalizeRotMat(mat3x3):
+    u, _, vh = np.linalg.svd(mat3x3, full_matrices=True)
+    return np.matmul(u, vh)
+
+
+
 def getAxisAngleFromRotMat(mat3x3):
-    assert mat3x3.shape == (3, 3), "MathUtils getAxisAngleFromRotMat Dimension Error: Dimension not 3x3"
-    assert abs(Determinant(mat3x3) - 1.0) < eps, "MathUtils getAxisAngleFromRotMat Determinant Error: Determinant not 1"
+    assert (mat3x3.shape == (3, 3)) or (len(mat3x3) == 9), "MathUtils getAxisAngleFromRotMat Dimension Error: Dimension not 3x3 nor 9"
+    if len(mat3x3) == 9:
+        mat3x3 = mat3x3.reshape((3, 3))
+    mat3x3 = NormalizeRotMat(mat3x3)
+    # assert abs(Determinant(mat3x3) - 1.0) < eps, "MathUtils getAxisAngleFromRotMat Determinant Error: Determinant {} not 1".format(Determinant(mat3x3))
     angle = math.acos(min(max((mat3x3[0, 0] + mat3x3[1, 1] + mat3x3[2, 2] - 1.0) / 2.0, -1.0), 1.0))
 
     if abs(angle) < eps:

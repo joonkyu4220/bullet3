@@ -301,7 +301,7 @@ class HumanoidPoseInterpolator(object):
 
     self.Reset()  #?? needed?
     index = 0
-
+    
     self._chestRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)
     index += self.action_dim
     self._neckRot = getQuaternionFromAction(action[index:index+self.action_dim], self.action_representation_mode)

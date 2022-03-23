@@ -305,7 +305,7 @@ def getStateFromQuaternion(quat, repr):
     elif repr == "RotVec":
         return getRotVecFromQuaternion(quat)
     elif repr == "RotMat":
-        return getRotMatFromQuaternion(quat)
+        return getRotMatFromQuaternion(quat).reshape((9,))
     elif repr == "6D":
         return getSixDimFromQuaternion(quat)
     

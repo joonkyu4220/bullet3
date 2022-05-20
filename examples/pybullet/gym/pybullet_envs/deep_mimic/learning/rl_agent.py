@@ -50,6 +50,7 @@ class RLAgent(ABC):
     self.world = world
     self.id = id
     self.logger = Logger()
+
     self._mode = self.Mode.TRAIN
 
     assert self._check_action_space(), \
@@ -114,6 +115,32 @@ class RLAgent(ABC):
     return
 
   output_dir = property(get_output_dir, set_output_dir)
+
+  #csvcheckpoint
+  def get_statecsv_dir(self):
+    return self._statecsv_dir
+
+  def set_statecsv_dir(self, statecsv_dir):
+    self._statecsv_dir = statecsv_dir
+    if (self._statecsv_dir != ""):
+      self.logger.configure_statecsv_file(statecsv_dir + "/state.csv")
+    return
+
+  statecsv_dir = property(get_statecsv_dir, set_statecsv_dir)
+
+  def get_actioncsv_dir(self):
+    return self._actioncsv_dir
+
+  def set_actioncsv_dir(self, actioncsv_dir):
+    self._actioncsv_dir = actioncsv_dir
+    if (self._actioncsv_dir != ""):
+      self.logger.configure_actioncsv_file(actioncsv_dir + "/action.csv")
+    return
+
+  actioncsv_dir = property(get_actioncsv_dir, set_actioncsv_dir)
+
+
+
 
   def get_int_output_dir(self):
     return self._int_output_dir
@@ -339,7 +366,7 @@ class RLAgent(ABC):
   def _update_new_action(self):
     #print("_update_new_action!")
     s = self._record_state()
-    #np.savetxt("pb_record_state_s.csv", s, delimiter=",")
+    # np.savetxt("pb_record_state_s.csv", s, delimiter=",")
     g = self._record_goal()
 
     if not (self._is_first_step()):
@@ -582,6 +609,12 @@ class RLAgent(ABC):
 
           if (self._enable_output() and curr_iter % self.int_output_iters == 0):
             self.logger.dump_tabular()
+          
+          #csvcheckpoint
+          for state in self.path.states:
+            self.logger.dump_statecsv(state)
+          for action in self.path.actions:
+            self.logger.dump_actioncsv(action)
 
         if (prev_iter // self.int_output_iters != self.iter // self.int_output_iters):
           end_training = self.enable_testing()

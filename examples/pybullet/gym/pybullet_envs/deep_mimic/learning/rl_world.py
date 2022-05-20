@@ -73,6 +73,9 @@ class RLWorld(object):
 
     #tbcheckpoint
     log_path = self.arg_parser.parse_string('log_path', default=output_path+"/logs")
+    #csvcheckpoint
+    statecsv_path = self.arg_parser.parse_string('statecsv_path', default=output_path+"/csv")
+    actioncsv_path = self.arg_parser.parse_string('actioncsv_path', default=output_path+"/csv")
 
     for i in range(num_agents):
       curr_file = agent_files[i]
@@ -84,6 +87,10 @@ class RLWorld(object):
         
         #tbcheckpoint
         curr_agent.log_dir = log_path
+
+        #csvcheckpoint
+        curr_agent.statecsv_dir = statecsv_path
+        curr_agent.actioncsv_dir = actioncsv_path
 
         Logger.print2(str(curr_agent))
 

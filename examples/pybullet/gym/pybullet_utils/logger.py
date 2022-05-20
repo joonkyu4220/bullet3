@@ -1,5 +1,6 @@
-from xmlrpc.client import MAXINT
 import pybullet_utils.mpi_util as MPIUtil
+import csv
+
 
 """
 
@@ -32,10 +33,12 @@ class Logger:
     self.log_headers = []
     self.log_current_row = {}
     self._dump_str_template = ""
+    
 
     #tbcheckpoint
     self._tb_dir = ""
     self.summary_writer = None
+    
     return
 
   def configure_tensorboard(self, log_dir):
@@ -70,9 +73,6 @@ class Logger:
       summary = self.summary_sess.run(self.summaries, feed_dict=self.feed_dict)
       self.summary_writer.add_summary(summary, global_step=iter)
     return
-
-
-
 
   def print2(str):
     if (MPIUtil.is_root_proc()):
@@ -169,6 +169,61 @@ class Logger:
 
     self.log_current_row.clear()
     self.first_row = False
+    return
+
+  #csvcheckpoint
+  def configure_statecsv_file(self, filename=None):
+    """
+    Set output directory to d, or to /tmp/somerandomnumber if d is None
+    """
+    self.statecsv_path = filename or "output/csv/state.csv"
+
+    statecsv_dir = os.path.dirname(self.statecsv_path)
+    if not os.path.exists(statecsv_dir) and MPIUtil.is_root_proc():
+      os.makedirs(statecsv_dir)
+
+    if (MPIUtil.is_root_proc()):
+      self.statecsv_file = open(self.statecsv_path, 'w', newline='')
+      self.statecsv_writer = csv.writer(self.statecsv_file, delimiter = ',')
+      assert osp.exists(self.statecsv_path)
+      atexit.register(self.statecsv_file.close)
+      Logger.print2("Logging rotation data to " + self.statecsv_file.name)
+    return
+
+  def dump_statecsv(self, content):
+    if (MPIUtil.is_root_proc()):
+      if self.statecsv_file is not None:
+        self.statecsv_writer.writerow(content)
+        # self.csv_file.write(content)
+        # self.csv_file.write("\n")
+        self.statecsv_file.flush()
+    return
+  
+  def configure_actioncsv_file(self, filename=None):
+    """
+    Set output directory to d, or to /tmp/somerandomnumber if d is None
+    """
+    self.actioncsv_path = filename or "output/csv/action.csv"
+
+    actioncsv_dir = os.path.dirname(self.actioncsv_path)
+    if not os.path.exists(actioncsv_dir) and MPIUtil.is_root_proc():
+      os.makedirs(actioncsv_dir)
+
+    if (MPIUtil.is_root_proc()):
+      self.actioncsv_file = open(self.actioncsv_path, 'w', newline='')
+      self.actioncsv_writer = csv.writer(self.actioncsv_file, delimiter = ',')
+      assert osp.exists(self.actioncsv_path)
+      atexit.register(self.actioncsv_file.close)
+      Logger.print2("Logging rotation data to " + self.actioncsv_file.name)
+    return
+
+  def dump_actioncsv(self, content):
+    if (MPIUtil.is_root_proc()):
+      if self.actioncsv_file is not None:
+        self.actioncsv_writer.writerow(content)
+        # self.csv_file.write(content)
+        # self.csv_file.write("\n")
+        self.actioncsv_file.flush()
     return
 
   def _build_str_template(self):
